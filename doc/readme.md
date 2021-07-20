@@ -15,7 +15,7 @@ cd <PATH>/grpcpp
 docker run \
     -d \
     -it \
-    -v $(pwd):/grpcpp \
+    -v $(pwd):/app \
     --net=host \
     --name grpcpp-dev \
     grpcpp-dev 
@@ -84,6 +84,9 @@ docker exec -it grpcpp-dev /bin/bash
     https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools-extension-pack
 
 - C++ Ext Pack will install CMake extension.
+
+- Update CMake settings so it will point to app directory:
+  cmake.sourceDirectory
 
 - In CMakeFile.txt root folder, on the status select the kit and compile with CMake icon on the status bar.
     Kit i.e.: [GCC 9.3.0 X86_64-linux-gnu]
