@@ -6,13 +6,13 @@ USER root
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Folder pointing to dependency file (pre-downloaded installation files)
-ARG DEPENDENCIES_PATH=./dependencies
+ARG DEPENDENCY_PATH=./dependency
 
 # Temporary folder to be cleaned up at the end
 ENV TEMP_DIR=/tmp/grpcpp
 
 # Final landing folder for development
-ENV DEV_DIR=/app
+ENV PROJECT_DIR=/grpcpp
 
 
 
@@ -20,7 +20,7 @@ ENV DEV_DIR=/app
 RUN apt-get update \
 	&& apt-get upgrade -y \
 	&& mkdir -p $TEMP_DIR \
-	&& mkdir -p $DEV_DIR
+	&& mkdir -p $PROJECT_DIR
 
 
 
@@ -42,7 +42,8 @@ RUN apt-get update \
 			ca-certificates \
 			curl \
 			gnupg \
-			python3-pip \			
+			python3-pip \
+			git \
 	&& apt-get upgrade -y \
 	&& rm -rf /var/lib/apt/lists/* \
 	&& pip3 install --upgrade pip \
@@ -58,7 +59,7 @@ RUN apt-get update \
 
 
 # Copy latest CMAKE install binary
-COPY $DEPENDENCIES_PATH/cmake-3.21.0-linux-x86_64.sh $TEMP_DIR/
+COPY $DEPENDENCY_PATH/cmake-3.21.0-linux-x86_64.sh $TEMP_DIR/
 
 # Install CMAKE
 RUN chmod +x $TEMP_DIR/cmake-3.21.0-linux-x86_64.sh \
@@ -72,7 +73,7 @@ ENV PATH="$PATH:$GRPC_INSTALL_DIR/bin"
 # Before running below commands, must have local clone of grpc repo in parent directory
 # Update branch version accordingly
 # git clone --recurse-submodules -b v1.38.1 https://github.com/grpc/grpc
-COPY $DEPENDENCIES_PATH/grpc/ $TEMP_DIR/grpc
+COPY $DEPENDENCY_PATH/grpc/ $TEMP_DIR/grpc
 
 RUN mkdir -p $GRPC_INSTALL_DIR \
 	\
@@ -134,7 +135,7 @@ RUN mkdir -p $GRPC_INSTALL_DIR \
 # Clean-up
 RUN rm -rf $TEMP_DIR \
     && apt-get update \
-	&& apt-get upgrade \
+	&& apt-get upgrade -y \
 	&& rm -rf /var/lib/apt/lists/*
 
-WORKDIR $DEV_DIR
+WORKDIR $PROJECT_DIR
