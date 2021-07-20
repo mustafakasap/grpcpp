@@ -1,0 +1,99 @@
+message(STATUS "***********************************")
+
+cmake_minimum_required(VERSION 3.10.2)
+PROJECT(aagrpcsvc VERSION 1.0 LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+set(CMAKE_CXX_FLAGS_DEBUG  "-g")
+
+find_package(Threads REQUIRED)
+
+# Find Protobuf installation
+set(protobuf_MODULE_COMPATIBLE TRUE)
+find_package(Protobuf CONFIG REQUIRED)
+message(STATUS "Using protobuf ${Protobuf_VERSION}")
+
+set(_PROTOBUF_LIBPROTOBUF protobuf::libprotobuf)
+set(_REFLECTION gRPC::grpc++_reflection)
+set(_PROTOBUF_PROTOC $<TARGET_FILE:protobuf::protoc>)
+
+
+# Find gRPC installation
+find_package(gRPC CONFIG REQUIRED)
+message(STATUS "Using gRPC ${gRPC_VERSION}")
+set(_GRPC_GRPCPP gRPC::grpc++)
+set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
+
+
+
+# Proto file
+get_filename_component(ext_proto "proto/extension.proto" ABSOLUTE)
+get_filename_component(ext_proto_path "${ext_proto}" PATH)
+get_filename_component(inf_proto "proto/inferencing.proto" ABSOLUTE)
+get_filename_component(med_proto "proto/media.proto" ABSOLUTE)
+
+# Generated sources 
+set(ext_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/extension.pb.cc")
+set(ext_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/extension.pb.h")
+set(ext_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/extension.grpc.pb.cc")
+set(ext_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/extension.grpc.pb.h")
+set(inf_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/inferencing.pb.cc")
+set(inf_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/inferencing.pb.h")
+set(med_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/media.pb.cc")
+set(med_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/media.pb.h")
+
+
+add_custom_command(
+	  OUTPUT "${ext_proto_srcs}" "${ext_proto_hdrs}" "${ext_grpc_srcs}" "${ext_grpc_hdrs}" "${inf_proto_srcs}" "${inf_proto_hdrs}" "${med_proto_srcs}" "${med_proto_hdrs}"
+	  COMMAND ${_PROTOBUF_PROTOC}
+	  ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}"
+		--cpp_out "${CMAKE_CURRENT_BINARY_DIR}"
+		-I "${ext_proto_path}"
+		--plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
+		"${ext_proto}" "${inf_proto}" "${med_proto}"
+	  DEPENDS "${ext_proto}"
+)
+
+# Include generated *.pb.h files
+include_directories(
+	"${CMAKE_CURRENT_BINARY_DIR}" 
+	"${PROJECT_SOURCE_DIR}/common" 
+)
+
+# Targets
+add_executable(
+	server
+	"server/main.cpp"
+	"server/inference_server.cpp"
+	"common/log_helper.cpp"
+	${ext_proto_srcs}
+	${ext_grpc_srcs}
+	${inf_proto_srcs}
+	${med_proto_srcs}
+)
+target_compile_definitions(server PUBLIC SERVER)
+target_link_libraries(
+	server
+	${_REFLECTION}
+	${_GRPC_GRPCPP}
+	${_PROTOBUF_LIBPROTOBUF}
+)
+set_target_properties(
+	server
+	PROPERTIES
+	ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/out"
+	LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/out"
+	RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/out"
+)  		
+
+
+
+message(STATUS "-----------------------------------")
+message(STATUS "---> CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
+message(STATUS "---> CMAKE_CURRENT_BINARY_DIR: ${CMAKE_CURRENT_BINARY_DIR}")
+message(STATUS "---> PROJECT_SOURCE_DIR: ${PROJECT_SOURCE_DIR}")
+message(STATUS "---> CMAKE_CURRENT_LIST_DIR: ${CMAKE_CURRENT_LIST_DIR}")
+ 

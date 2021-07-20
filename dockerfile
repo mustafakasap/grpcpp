@@ -1,41 +1,73 @@
-FROM amd64/ubuntu:20.04 AS build-env
+FROM ubuntu:20.04 AS build-env
 
 USER root
 
-ARG DEPENDENCIES_PATH ../dependencies
+# Ensure apt-get won't prompt for selecting locale options
+ENV DEBIAN_FRONTEND=noninteractive
 
-ENV TEMP_DIR /tmp/grpcpp
-ENV DEV_DIR /dev
+# Folder pointing to dependency file (pre-downloaded installation files)
+ARG DEPENDENCIES_PATH=./dependencies
 
-RUN mkdir {/dev,/tmp/grpcpp}
+# Temporary folder to be cleaned up at the end
+ENV TEMP_DIR=/tmp/grpcpp
+
+# Final landing folder for development
+ENV DEV_DIR=/app
 
 
 
-# Latest CMAKE install binary
-COPY $DEPENDENCIES_PATH/cmake-3.21.0-linux-x86_64.sh $TEMP_DIR
+# Update system & create folders
+RUN apt-get update \
+	&& apt-get upgrade -y \
+	&& mkdir -p $TEMP_DIR \
+	&& mkdir -p $DEV_DIR
 
-# Install CMAKE
-RUN cd $TEMP_DIR \
-	&& ./cmake-3.21.0-linux-x86_64.sh --skip-license --prefix=/
 
+
+# Install dev build tools
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
 			autoconf \
 			build-essential \
 			curl \
+			wget \
 			g++ \
 			gcc \
 			gdb \
 			make \
+			libtool \
 			pkg-config \
 			software-properties-common \
-	&& apt-get update \
-	&& rm -rf /var/lib/apt/lists/*
+			libssl-dev \
+			ca-certificates \
+			curl \
+			gnupg \
+			python3-pip \			
+	&& apt-get upgrade -y \
+	&& rm -rf /var/lib/apt/lists/* \
+	&& pip3 install --upgrade pip \
+	&& pip3 install \
+		numpy \
+		grpcio \
+		grpcio-tools \
+		opencv-python \
+		python-dotenv \
+		azure-iot-device \
+		azure-iot-hub \
+	&& pip3 install --upgrade requests
+
+
+# Copy latest CMAKE install binary
+COPY $DEPENDENCIES_PATH/cmake-3.21.0-linux-x86_64.sh $TEMP_DIR/
+
+# Install CMAKE
+RUN chmod +x $TEMP_DIR/cmake-3.21.0-linux-x86_64.sh \
+	&& $TEMP_DIR/cmake-3.21.0-linux-x86_64.sh --skip-license --exclude-subdir --prefix=/usr/local
 
 
 
-ENV GRPC_INSTALL_DIR /root/.local
-ENV PATH "$PATH:$GRPC_INSTALL_DIR/bin"
+ENV GRPC_INSTALL_DIR=/root/.local
+ENV PATH="$PATH:$GRPC_INSTALL_DIR/bin"
 
 # Before running below commands, must have local clone of grpc repo in parent directory
 # Update branch version accordingly
@@ -43,35 +75,36 @@ ENV PATH "$PATH:$GRPC_INSTALL_DIR/bin"
 COPY $DEPENDENCIES_PATH/grpc/ $TEMP_DIR/grpc
 
 RUN mkdir -p $GRPC_INSTALL_DIR \
+	\
 	&& cd $TEMP_DIR/grpc \
 	&& mkdir -p "third_party/abseil-cpp/cmake/build" \
 	&& cd "third_party/abseil-cpp/cmake/build" \
 	&& cmake ../.. \
-	-DCMAKE_BUILD_TYPE=Release \
-	-DCMAKE_POSITION_INDEPENDENT_CODE=TRUE \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_POSITION_INDEPENDENT_CODE=TRUE \
 	&& make -j$(nproc --all) install \
 	\
 	&& cd $TEMP_DIR/grpc \
 	&& mkdir -p "third_party/cares/cares/cmake/build" \
 	&& cd "third_party/cares/cares/cmake/build" \
 	&& cmake ../.. \
-	-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_BUILD_TYPE=Release \
 	&& make -j$(nproc --all) install \
 	\
 	&& cd $TEMP_DIR/grpc \
 	&& mkdir -p "third_party/protobuf/cmake/build" \
 	&& cd "third_party/protobuf/cmake/build" \
 	&& cmake .. \
-	-Dprotobuf_BUILD_TESTS=OFF \
-	-DCMAKE_BUILD_TYPE=Release .. \
+		-Dprotobuf_BUILD_TESTS=OFF \
+		-DCMAKE_BUILD_TYPE=Release .. \
 	&& make -j$(nproc --all) install \
 	\
 	&& cd $TEMP_DIR/grpc \
 	&& mkdir -p "third_party/re2/cmake/build" \
 	&& cd "third_party/re2/cmake/build" \
 	&& cmake ../.. \
-	-DCMAKE_BUILD_TYPE=Release \
-	-DCMAKE_POSITION_INDEPENDENT_CODE=TRUE \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_POSITION_INDEPENDENT_CODE=TRUE \
 	&& make -j$(nproc --all) install \
 	\
 	&& cd $TEMP_DIR/grpc \
@@ -85,18 +118,17 @@ RUN mkdir -p $GRPC_INSTALL_DIR \
 	&& mkdir -p cmake/build \
 	&& cd cmake/build \
 	&& cmake ../.. \
-	-DCMAKE_INSTALL_PREFIX=$GRPC_INSTALL_DIR \
-	-DCMAKE_BUILD_TYPE=Release \
-	-DgRPC_INSTALL=ON \
-	-DgRPC_BUILD_TESTS=OFF \
-	-DgRPC_CARES_PROVIDER=package \
-	-DgRPC_ABSL_PROVIDER=package \
-	-DgRPC_PROTOBUF_PROVIDER=package \
-	-DgRPC_RE2_PROVIDER=package \
-	-DgRPC_SSL_PROVIDER=package \
-	-DgRPC_ZLIB_PROVIDER=package \
+		-DCMAKE_INSTALL_PREFIX=$GRPC_INSTALL_DIR \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DgRPC_INSTALL=ON \
+		-DgRPC_BUILD_TESTS=OFF \
+		-DgRPC_CARES_PROVIDER=package \
+		-DgRPC_ABSL_PROVIDER=package \
+		-DgRPC_PROTOBUF_PROVIDER=package \
+		-DgRPC_RE2_PROVIDER=package \
+		-DgRPC_SSL_PROVIDER=package \
+		-DgRPC_ZLIB_PROVIDER=package \
 	&& make -j$(nproc --all) install
-
 
 
 # Clean-up
@@ -104,3 +136,5 @@ RUN rm -rf $TEMP_DIR \
     && apt-get update \
 	&& apt-get upgrade \
 	&& rm -rf /var/lib/apt/lists/*
+
+WORKDIR $DEV_DIR
