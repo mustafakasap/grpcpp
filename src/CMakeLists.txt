@@ -3,7 +3,7 @@ message(STATUS "***********************************")
 cmake_minimum_required(VERSION 3.21.0)
 PROJECT(grpcsvc VERSION 1.0 LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
@@ -31,7 +31,7 @@ set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
 
 # Proto file
 set(PROTO_FILE_NAME_01	"greeter")
-get_filename_component(ext_proto "proto/${PROTO_FILE_NAME_01}.proto" ABSOLUTE)
+get_filename_component(ext_proto "../proto/${PROTO_FILE_NAME_01}.proto" ABSOLUTE)
 get_filename_component(ext_proto_path "${ext_proto}" PATH)
 
 # Generated sources 
@@ -61,6 +61,8 @@ include_directories(
 add_executable(
 	server
 	"server/main.cpp"
+	"server/gserver.cpp"
+	"server/gsession.cpp"
 	"common/log_helper.cpp"
 	${ext_proto_srcs}
 	${ext_grpc_srcs}
@@ -75,9 +77,32 @@ target_link_libraries(
 set_target_properties(
 	server
 	PROPERTIES
-	ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/out"
-	LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/out"
-	RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/out"
+	ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/../out"
+	LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/../out"
+	RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/../out"
+)  		
+
+add_executable(
+	client
+	"client/main.cpp"
+	"client/gclient.cpp"
+	"common/log_helper.cpp"
+	${ext_proto_srcs}
+	${ext_grpc_srcs}
+)
+target_compile_definitions(client PUBLIC CLIENT)
+target_link_libraries(
+	client
+	${_REFLECTION}
+	${_GRPC_GRPCPP}
+	${_PROTOBUF_LIBPROTOBUF}
+)
+set_target_properties(
+	client
+	PROPERTIES
+	ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/../out"
+	LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/../out"
+	RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/../out"
 )  		
 
 

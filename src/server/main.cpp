@@ -1,29 +1,55 @@
 #include <csignal>
 #include <iostream>
 
+#include "gserver.h"
 #include "log_helper.h"
 
 using namespace std;
+using namespace client_server::grpc::v1;
 
+extern int g_system_log_level;
 
 void SignalHandler(int signal)
 {
 	LOG(LOG_LEVEL::DBG, "Received termination signal: %d", signal);
+	GServer::GetInstance().Stop();
 }
 
 int main(int argc, char **argv)
 {
 	signal(SIGTERM, SignalHandler);
 	signal(SIGINT, SignalHandler);
+	signal(SIGKILL, SignalHandler);
 
 	try
 	{
-		int a = 1;
-		int b = 2;
+		g_system_log_level = 2;
+		
+		char *env_var = std::getenv("LOGGING_LEVEL");
+		if (env_var != NULL)
+		{
+			std::string temp(env_var);
+			g_system_log_level = std::stoi(temp);
+		}
 
-		cout << "Server: " << (a+b) << endl;
+		// Should improve arg parsing...
+		std::string grpc_server_address{"0.0.0.0:44444"};
+		if (argc >= 2)
+			grpc_server_address = argv[1];
 
-		LOG(LOG_LEVEL::INF, "Server: end.");
+
+		LOG(LOG_LEVEL::INF, "GRPC Server starting...");
+		LOG(LOG_LEVEL::INF, "GRPC_SERVER_ADDRESS: %s", grpc_server_address.c_str());
+		LOG(LOG_LEVEL::INF, "LOGGING_LEVEL: %d", g_system_log_level);
+
+
+		if (!GServer::GetInstance().Initialize(grpc_server_address))
+		{
+			LOG(LOG_LEVEL::ERR, "Server initialization failed.");
+			return -1;
+		}
+
+		GServer::GetInstance().Run();
 	}
 	catch (std::exception &e)
 	{
