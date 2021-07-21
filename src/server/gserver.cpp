@@ -125,14 +125,11 @@ void GServer::Run()
 			// if too short, it will lock continiously...
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-			// LOG(LOG_LEVEL::DBG, "Reply to all sessions...");
+			std::lock_guard<std::mutex> local_lock_guard{m_mutex_sessions};
+			for (const auto &it : m_sessions)
 			{
-				std::lock_guard<std::mutex> local_lock_guard{m_mutex_sessions};
-				for (const auto &it : m_sessions)
-				{
-					std::lock_guard<std::mutex> inner_local_lock_guard{it.second->m_mutex};
-					it.second->Reply();
-				}
+				// std::lock_guard<std::mutex> inner_local_lock_guard{it.second->m_mutex};
+				it.second->Reply();
 			}
 		}
 	});
@@ -187,8 +184,6 @@ void GServer::Stop()
 
 std::shared_ptr<GSession> GServer::AddSession()
 {
-	std::lock_guard<std::mutex> local_lock_guard{m_mutex_sessions};
-
 	auto new_session_id = m_next_session_id++;
 	auto new_session = std::make_shared<GSession>(new_session_id);
 	if (!new_session->Initialize())
@@ -197,6 +192,7 @@ std::shared_ptr<GSession> GServer::AddSession()
 		return nullptr;
 	}
 
+	std::lock_guard<std::mutex> local_lock_guard{m_mutex_sessions};
 	m_sessions[new_session_id] = new_session;
 
 	LOG(LOG_LEVEL::DBG, "AddSession> session id: %d, new session is active and waiting for connection.", new_session_id);
