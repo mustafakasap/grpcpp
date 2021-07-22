@@ -28,9 +28,8 @@ set(_GRPC_GRPCPP gRPC::grpc++)
 set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
 
 
-
 # Proto file
-set(PROTO_FILE_NAME_01	"greeter")
+set(PROTO_FILE_NAME_01	"client_server_bidi_async_stream")
 get_filename_component(ext_proto "../proto/${PROTO_FILE_NAME_01}.proto" ABSOLUTE)
 get_filename_component(ext_proto_path "${ext_proto}" PATH)
 
@@ -61,9 +60,6 @@ include_directories(
 add_executable(
 	server
 	"server/main.cpp"
-	"server/gserver.cpp"
-	"server/gsession.cpp"
-	"common/log_helper.cpp"
 	${ext_proto_srcs}
 	${ext_grpc_srcs}
 )
@@ -85,8 +81,6 @@ set_target_properties(
 add_executable(
 	client
 	"client/main.cpp"
-	"client/gclient.cpp"
-	"common/log_helper.cpp"
 	${ext_proto_srcs}
 	${ext_grpc_srcs}
 )
@@ -111,4 +105,3 @@ message(STATUS "---> CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
 message(STATUS "---> CMAKE_CURRENT_BINARY_DIR: ${CMAKE_CURRENT_BINARY_DIR}")
 message(STATUS "---> PROJECT_SOURCE_DIR: ${PROJECT_SOURCE_DIR}")
 message(STATUS "---> CMAKE_CURRENT_LIST_DIR: ${CMAKE_CURRENT_LIST_DIR}")
- 
