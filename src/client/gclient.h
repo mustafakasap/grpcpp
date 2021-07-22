@@ -29,7 +29,7 @@ class GClient {
     void Stop();
 
   private:
-    uint64_t m_seq_num = 10;
+    int64_t m_seq_num = 1;
 
     std::atomic_bool m_running{false};
     std::unique_ptr<Greeter::Stub> m_stub;

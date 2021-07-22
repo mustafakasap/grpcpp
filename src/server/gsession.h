@@ -29,7 +29,7 @@ class GSession {
     void Finish();
 
   private:
-    uint64_t m_seq_num = -10;
+    int64_t m_seq_num = -10;
 
     const uint64_t m_session_id{0};
     ::grpc::ServerAsyncReaderWriter<HelloReply, HelloRequest> m_subscribe_stream{&m_server_context};
