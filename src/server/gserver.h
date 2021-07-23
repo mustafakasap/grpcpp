@@ -35,8 +35,7 @@ public:
 	std::unique_ptr<::grpc::Server> m_grpc_server;
 	CSService01::AsyncService m_cs_async_service;
 
-	std::unique_ptr<::grpc::ServerCompletionQueue> m_completion_queue_call{}; // https://grpc.github.io/grpc/cpp/classgrpc_1_1_completion_queue.html
-	std::unique_ptr<::grpc::ServerCompletionQueue> m_completion_queue_notification{}; // for notifications by server, health checker
+	std::unique_ptr<::grpc::ServerCompletionQueue> m_completion_queue{}; // https://grpc.github.io/grpc/cpp/classgrpc_1_1_completion_queue.html
 	
 	std::mutex m_mutex_sessions{};  // std::shared_mutex ?
 	std::unordered_map<uint64_t, std::shared_ptr<GSession>> m_sessions{};

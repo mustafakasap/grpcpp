@@ -20,8 +20,8 @@ bool GSession::Initialize()
 	GServer::GetInstance().m_cs_async_service.RequestCSServiceMethod01(
 		&m_server_context,
 		&m_server_reader_writer_stream,
-		GServer::GetInstance().m_completion_queue_call.get(),
-		GServer::GetInstance().m_completion_queue_notification.get(),
+		GServer::GetInstance().m_completion_queue.get(),
+		GServer::GetInstance().m_completion_queue.get(),
 		reinterpret_cast<void *>(m_session_id << GRPC_EVENT_BIT_LENGTH | GRPC_EVENT_CONNECTED)
 	);
 
