@@ -6,14 +6,14 @@
 #include "log_helper.h"
 
 
-bool GServer::Initialize(const std::string &server_address)
+bool GServer::Initialize(const std::string &grpc_server_address)
 {
-	LOG(LOG_LEVEL::DBG, "Initializing server...");
+	LOG(LOG_LEVEL::DBG, ">GServer::Initialize");
 	::grpc::ServerBuilder builder;
 
-	builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+	builder.AddListeningPort(grpc_server_address, grpc::InsecureServerCredentials());
 
-	builder.RegisterService(&m_greeter_async_service);
+	builder.RegisterService(&m_cs_async_service);
 
 	m_completion_queue_call = builder.AddCompletionQueue();
 	m_completion_queue_notification = builder.AddCompletionQueue();
@@ -25,14 +25,14 @@ bool GServer::Initialize(const std::string &server_address)
 
 void GServer::Run()
 {
-	m_running = true;
+    LOG(LOG_LEVEL::DBG, ">GServer::Run");
 
-    LOG(LOG_LEVEL::DBG, "Run> Server start run.");
+	m_running = true;
 
 	// First thread: Completion Queue - Call
 	std::thread thread_completion_queue_call([this]
 	{
-		LOG(LOG_LEVEL::DBG, "Start thread_completion_queue_call.");
+		LOG(LOG_LEVEL::DBG, ">thread_completion_queue_call");
 
 		// Add first idle session waiting for connection
 		AddSession();
@@ -46,7 +46,7 @@ void GServer::Run()
 		{
 			auto event = static_cast<GrpcEvent>(session_id & GRPC_EVENT_MASK);
 			session_id = session_id >> GRPC_EVENT_BIT_LENGTH;
-			LOG(LOG_LEVEL::DBG, "completion queue call, session id: %d, event: %d", session_id, event);
+			LOG(LOG_LEVEL::DBG, "thread_completion_queue_call: %d, event: %d", session_id, event);
 
 			if (event == GRPC_EVENT_FINISHED)
 			{
@@ -57,12 +57,10 @@ void GServer::Run()
 			auto session = GetSession(session_id);
 			if (session == nullptr)
 			{
-				LOG(LOG_LEVEL::DBG, "completion queue call: session id: %d, session doesnt exist.", session_id);
 				continue;
 			}
 			if (!ok)
 			{
-				LOG(LOG_LEVEL::DBG, "completion queue call: session id: %d, rpc call closed.", session_id);
 				RemoveSession(session_id);
 				continue;
 			}
@@ -71,13 +69,13 @@ void GServer::Run()
 			session->Process(event);
 		}
 		
-		LOG(LOG_LEVEL::DBG, "completion queue call: Loop end, exiting...");
+		LOG(LOG_LEVEL::DBG, "<thread_completion_queue_call");
 	});
 
 	// Second thread: Completion Queue - Notification
 	std::thread thread_completion_queue_notification([this]
 	{
-		LOG(LOG_LEVEL::DBG, "Start thread_completion_queue_notification.");
+		LOG(LOG_LEVEL::DBG, ">thread_completion_queue_notification");
 
 		uint64_t session_id; // <session_id, session> map id for distinct connection sessions
 		bool ok;
@@ -88,7 +86,7 @@ void GServer::Run()
 		{
 			auto event = static_cast<GrpcEvent>(session_id & GRPC_EVENT_MASK);
 			session_id = session_id >> GRPC_EVENT_BIT_LENGTH;
-			LOG(LOG_LEVEL::DBG, "completion queue notification call, session id: %d, event: %d", session_id, event);
+			LOG(LOG_LEVEL::DBG, "thread_completion_queue_notification, session id: %d, event: %d", session_id, event);
 
 			if (event == GRPC_EVENT_FINISHED)
 			{
@@ -98,40 +96,39 @@ void GServer::Run()
 			auto session = GetSession(session_id);
 			if (session == nullptr)
 			{
-				LOG(LOG_LEVEL::DBG, "completion queue notification call: session id: %d, session doesnt exist.", session_id);
 				continue;
 			}
 			if (!ok)
 			{
-				LOG(LOG_LEVEL::DBG, "completion queue notification call: session id: %d, rpc call closed.", session_id);
 				RemoveSession(session_id);
 				continue;
 			}
 
-			std::lock_guard<std::mutex> local_lock_guard{session->m_mutex};
+			std::lock_guard<std::mutex> lock_guard{session->m_mutex};
 			session->Process(event);
 		}
 
-		LOG(LOG_LEVEL::DBG, "completion queue notification call: Loop end, exiting...");
+		LOG(LOG_LEVEL::DBG, "<thread_completion_queue_notification");
 	});
 
 	// Third thread:Responder
 	std::thread thread_respond([this]
 	{
-		LOG(LOG_LEVEL::DBG, "Start thread_respond.");
+		LOG(LOG_LEVEL::DBG, ">thread_respond");
 
 		while (m_running)
 		{
-			// if too short, it will lock continiously...
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-			std::lock_guard<std::mutex> local_lock_guard{m_mutex_sessions};
+			std::lock_guard<std::mutex> lock_guard{m_mutex_sessions};
 			for (const auto &it : m_sessions)
 			{
-				// std::lock_guard<std::mutex> inner_local_lock_guard{it.second->m_mutex};
+				std::lock_guard<std::mutex> inner_lock_guard{it.second->m_mutex};
 				it.second->Reply();
 			}
 		}
+
+		LOG(LOG_LEVEL::DBG, "<thread_respond");
 	});
 
 	// clean-up, wait threads to complete...
@@ -148,11 +145,13 @@ void GServer::Run()
 		thread_respond.join();
 	}
 	
-	LOG(LOG_LEVEL::DBG, "GRPC server RUN exiting...");
+    LOG(LOG_LEVEL::DBG, "<GServer::Run");
 }
 
-void GServer::Stop()
+void GServer::Stop() 
 {
+    LOG(LOG_LEVEL::DBG, ">GServer::Stop");
+
 	if (!m_running) return;
 	m_running = false;
 
@@ -179,7 +178,7 @@ void GServer::Stop()
 	LOG(LOG_LEVEL::DBG, "Shutting down completion queue(notification)...");
 	m_completion_queue_notification->Shutdown();
 
-	LOG(LOG_LEVEL::DBG, "Shutting down grpc server complete.");
+    LOG(LOG_LEVEL::DBG, "<GServer::Stop");
 }
 
 std::shared_ptr<GSession> GServer::AddSession()

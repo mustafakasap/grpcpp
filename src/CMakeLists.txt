@@ -30,7 +30,7 @@ set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
 
 
 # Proto file
-set(PROTO_FILE_NAME_01	"greeter")
+set(PROTO_FILE_NAME_01	"client_server_bidi_async_stream")
 get_filename_component(ext_proto "../proto/${PROTO_FILE_NAME_01}.proto" ABSOLUTE)
 get_filename_component(ext_proto_path "${ext_proto}" PATH)
 

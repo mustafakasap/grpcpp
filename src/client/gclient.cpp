@@ -7,7 +7,7 @@ using namespace client_server::grpc::v1;
 
 bool GClient::Initialize(const std::string &server)
 {
-    m_stub = Greeter::NewStub(grpc::CreateChannel(server, grpc::InsecureChannelCredentials()));
+    m_stub = CSService01::NewStub(grpc::CreateChannel(server, grpc::InsecureChannelCredentials()));
     return true;
 }
 
@@ -15,7 +15,7 @@ void GClient::Run()
 {
     LOG(LOG_LEVEL::DBG, "Waiting server availability.");
     m_context.set_wait_for_ready(true);
-    m_stream = m_stub->SayHello(&m_context);
+    m_client_reader_writer_stream = m_stub->CSServiceMethod01(&m_context);
 
     m_running = true;
 
@@ -37,8 +37,8 @@ void GClient::handle_server_response()
 {
     LOG(LOG_LEVEL::DBG, "start thread handle_server_response.");
 
-    HelloReply message_from_server;
-    while (m_stream->Read(&message_from_server))
+    CSService01Method01MessageOut01 message_from_server;
+    while (m_client_reader_writer_stream->Read(&message_from_server))
     {
         LOG(LOG_LEVEL::DBG, "received message from server: %s", message_from_server.ShortDebugString().c_str());
     }
@@ -54,11 +54,11 @@ void GClient::make_server_request()
     {
         try
         {
-            HelloRequest message_to_server;
+            CSService01Method01MessageIn01 message_to_server;
 
             LOG(LOG_LEVEL::DBG, "sending message to server: m_seq_num=%d", m_seq_num);
-            message_to_server.set_name(std::to_string(m_seq_num++));
-            if (!m_stream->Write(message_to_server))
+            message_to_server.set_csservice01method01messagein01param01(std::to_string(m_seq_num++));
+            if (!m_client_reader_writer_stream->Write(message_to_server))
             {
                 LOG(LOG_LEVEL::ERR, "Cant write to server.");
                 break;
@@ -70,7 +70,7 @@ void GClient::make_server_request()
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     LOG(LOG_LEVEL::DBG, "stop thread make_server_request.");

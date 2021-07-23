@@ -17,9 +17,9 @@ using namespace client_server::grpc::v1;
 bool GSession::Initialize()
 {
 	// https://grpc.github.io/grpc/cpp/classgrpc_1_1_async_generic_service.html
-	GServer::GetInstance().m_greeter_async_service.RequestSayHello(
+	GServer::GetInstance().m_cs_async_service.RequestCSServiceMethod01(
 		&m_server_context,
-		&m_subscribe_stream,
+		&m_server_reader_writer_stream,
 		GServer::GetInstance().m_completion_queue_call.get(),
 		GServer::GetInstance().m_completion_queue_notification.get(),
 		reinterpret_cast<void *>(m_session_id << GRPC_EVENT_BIT_LENGTH | GRPC_EVENT_CONNECTED)
@@ -28,14 +28,14 @@ bool GSession::Initialize()
 	return true;
 }
 
-void GSession::Process(GrpcEvent event) {
-	LOG(LOG_LEVEL::DBG, "Session Process, session id: %d, event: %d", m_session_id, event);
+void GSession::Process(GrpcEvent event) 
+{
 	switch (event)
 	{
 		case GRPC_EVENT_CONNECTED:
 			// https://grpc.github.io/grpc/cpp/classgrpc_1_1_server_async_reader_writer.html
-			m_subscribe_stream.Read(
-				&m_request,
+			m_server_reader_writer_stream.Read(
+				&m_message_from_client,
 				reinterpret_cast<void*>(m_session_id << GRPC_EVENT_BIT_LENGTH | GRPC_EVENT_READ_DONE));
 			
 			m_status = GrpcSessionStatus::READY_TO_WRITE;
@@ -43,31 +43,30 @@ void GSession::Process(GrpcEvent event) {
 			return;
 
 		case GRPC_EVENT_READ_DONE:
-			LOG(LOG_LEVEL::DBG, "GRPC_EVENT_READ_DONE, session id: %d, event: %d", m_session_id, event);
-			LOG(LOG_LEVEL::INF, "Request.Name: %s", m_request.name().c_str());
-
-			// LOG(LOG_LEVEL::DBG, "Session Process read done, session id: %d, event: %d \n\t request: %s", m_session_id, event, m_request.DebugString().c_str());
-			LOG(LOG_LEVEL::DBG, "Session Process read done, session id: %d, event: %d", m_session_id, event);
-
 			// https://grpc.github.io/grpc/cpp/classgrpc_1_1_server_async_reader_writer.html
-			m_subscribe_stream.Read(
-				&m_request,
+			m_server_reader_writer_stream.Read(
+				&m_message_from_client,
 				reinterpret_cast<void*>(m_session_id << GRPC_EVENT_BIT_LENGTH | GRPC_EVENT_READ_DONE));
 
-			Reply();
+			LOG(LOG_LEVEL::INF, 
+					"Received message: session id: %d, event: %d, received: %s", 
+						m_session_id, 
+						event, 
+						m_message_from_client.ShortDebugString().c_str());
 			return;
 
 		case GRPC_EVENT_WRITE_DONE:
-			if (!m_response_message_queue.empty())
+			if (!m_message_to_client_queue.empty())
 			{
 				m_status = GrpcSessionStatus::WAIT_WRITE_DONE;
 				
+				LOG(LOG_LEVEL::INF, "Sending message 2: %s", (*m_message_to_client_queue.front()).ShortDebugString().c_str());
 				// https://grpc.github.io/grpc/cpp/classgrpc_1_1_server_async_reader_writer.html
-				m_subscribe_stream.Write(
-					*m_response_message_queue.front(),
+				m_server_reader_writer_stream.Write(
+					*m_message_to_client_queue.front(),
 					reinterpret_cast<void*>(m_session_id << GRPC_EVENT_BIT_LENGTH | GRPC_EVENT_WRITE_DONE));
 
-				m_response_message_queue.pop_front();
+				m_message_to_client_queue.pop_front();
 			} else {
 				m_status = GrpcSessionStatus::READY_TO_WRITE;
 			}
@@ -88,27 +87,29 @@ void GSession::Reply()
 
 	// Here we are sending randomly generated replies... 
 	// User may fill the m_response_message_queue within Client Read stage with responses to client regarding client's requests.
-	auto new_message = std::make_shared<HelloReply>();
-	new_message->set_message(std::to_string(m_seq_num--));
+	auto new_message = std::make_shared<CSService01Method01MessageOut01>();
+	new_message->set_csservice01method01messageout01param01(std::to_string(m_seq_num--));
 
 	if (m_status == GrpcSessionStatus::READY_TO_WRITE)
 	{
 		m_status = GrpcSessionStatus::WAIT_WRITE_DONE;
 
+		LOG(LOG_LEVEL::INF, "Sending message 1: %s", (*new_message).ShortDebugString().c_str());
+
 		// https://grpc.github.io/grpc/cpp/classgrpc_1_1_server_async_reader_writer.html
-		m_subscribe_stream.Write(
+		m_server_reader_writer_stream.Write(
 			*new_message,
 			reinterpret_cast<void*>(m_session_id << GRPC_EVENT_BIT_LENGTH | GRPC_EVENT_WRITE_DONE));
 
 	} else {
-		m_response_message_queue.emplace_back(new_message);
+		m_message_to_client_queue.emplace_back(new_message);
 	}
 }
 
 void GSession::Finish()
 {
 	if (m_status == GrpcSessionStatus::WAIT_CONNECT) { return; }
-	m_subscribe_stream.Finish(
+	m_server_reader_writer_stream.Finish(
 		::grpc::Status::CANCELLED,
 		reinterpret_cast<void*>(m_session_id << GRPC_EVENT_BIT_LENGTH | GRPC_EVENT_FINISHED));
 }

@@ -5,7 +5,6 @@
 #include "log_helper.h"
 
 using namespace std;
-using namespace client_server::grpc::v1;
 
 extern int g_system_log_level;
 
@@ -23,7 +22,7 @@ int main(int argc, char **argv)
 
 	try
 	{
-		g_system_log_level = 2;
+		g_system_log_level = 1;
 		
 		char *env_var = std::getenv("LOGGING_LEVEL");
 		if (env_var != NULL)

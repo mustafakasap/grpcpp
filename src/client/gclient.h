@@ -1,12 +1,13 @@
 #ifndef GRPC_CLIENT_H
 #define GRPC_CLIENT_H
 
-#include "greeter.grpc.pb.h"
 #include <grpc/grpc.h>
 #include <grpcpp/channel.h>
 
 #include <memory>
 #include <thread>
+
+#include "client_server_bidi_async_stream.grpc.pb.h"
 
 #include "log_helper.h"
 
@@ -32,9 +33,9 @@ class GClient {
     int64_t m_seq_num = 1;
 
     std::atomic_bool m_running{false};
-    std::unique_ptr<Greeter::Stub> m_stub;
+    std::unique_ptr<CSService01::Stub> m_stub;
     ::grpc::ClientContext m_context{};
-    std::unique_ptr<::grpc::ClientReaderWriter<HelloRequest, HelloReply>> m_stream{};
+    std::unique_ptr<::grpc::ClientReaderWriter<CSService01Method01MessageIn01, CSService01Method01MessageOut01>> m_client_reader_writer_stream{};
 
     std::thread thread_make_server_request;
     std::thread thread_handle_server_response;

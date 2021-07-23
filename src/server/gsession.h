@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "grpctype.h"
-#include "greeter.grpc.pb.h"
+#include "client_server_bidi_async_stream.grpc.pb.h"
 
 using namespace client_server::grpc::v1;
 
@@ -29,13 +29,13 @@ class GSession {
     void Finish();
 
   private:
-    int64_t m_seq_num = -10;
+    int64_t m_seq_num = -1;
 
     const uint64_t m_session_id{0};
-    ::grpc::ServerAsyncReaderWriter<HelloReply, HelloRequest> m_subscribe_stream{&m_server_context};
+    ::grpc::ServerAsyncReaderWriter<CSService01Method01MessageOut01, CSService01Method01MessageIn01> m_server_reader_writer_stream{&m_server_context};
 
-    HelloRequest m_request{};
-    std::deque<std::shared_ptr<HelloReply>> m_response_message_queue{};
+    CSService01Method01MessageIn01 m_message_from_client{};
+    std::deque<std::shared_ptr<CSService01Method01MessageOut01>> m_message_to_client_queue{};
 };
 
 #endif  // GRPC_SESSION_H

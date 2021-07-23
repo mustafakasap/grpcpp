@@ -4,24 +4,19 @@
 #include <grpcpp/server.h>
 #include "grpctype.h"
 
-#include "greeter.grpc.pb.h"
+#include "client_server_bidi_async_stream.grpc.pb.h"
 #include "gsession.h"
 
 class GServer
 {
 public:
-	GServer(const GServer &) = delete;
-	GServer(GServer &&) = delete;
-	GServer &operator=(const GServer &) = delete;
-	GServer &operator=(GServer &&) = delete;
-
 	static GServer &GetInstance()
 	{
 		static GServer kGlobalInstance; // thread safe only in C++11
 		return kGlobalInstance;
 	}
 
-	bool Initialize(const std::string &server);
+	bool Initialize(const std::string &grpc_server_address);
 	void Run();
 	void Stop();
 
@@ -38,7 +33,7 @@ public:
 	std::atomic_uint64_t m_next_session_id{1};
 
 	std::unique_ptr<::grpc::Server> m_grpc_server;
-	Greeter::AsyncService m_greeter_async_service;
+	CSService01::AsyncService m_cs_async_service;
 
 	std::unique_ptr<::grpc::ServerCompletionQueue> m_completion_queue_call{}; // https://grpc.github.io/grpc/cpp/classgrpc_1_1_completion_queue.html
 	std::unique_ptr<::grpc::ServerCompletionQueue> m_completion_queue_notification{}; // for notifications by server, health checker
