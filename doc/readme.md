@@ -86,7 +86,9 @@ docker exec -it grpcpp-dev /bin/bash
 - C++ Ext Pack will install CMake extension.
 
 - Update CMake settings so it will point to app directory:
-  cmake.sourceDirectory
+```
+cmake.sourceDirectory
+```
 
 - In CMakeFile.txt root folder, on the status select the kit and compile with CMake icon on the status bar.
     Kit i.e.: [GCC 9.3.0 X86_64-linux-gnu]
